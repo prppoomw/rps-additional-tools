@@ -22,7 +22,7 @@ pipeline {
                         def remoteCommand = """
                             rm -rf rps-additional-tools &&
                             git clone https://github.com/prppoomw/rps-additional-tools.git &&
-                            cd rps-additional-tools/mysql-kafka-redis &&
+                            cd rps-additional-tools &&
                             docker-compose up -d
                         """
 
