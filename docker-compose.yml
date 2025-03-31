@@ -1,8 +1,6 @@
-version: '3.7'
-
 networks:
   rpsgame:
-    driver: bridge
+    external: true
 volumes:
   redis: null
   db: null
@@ -20,39 +18,24 @@ services:
       - rpsgame
     ports:
       - '3306:3306'
-  # PhpMyAdmin #
-  phpmyadmin:
-    depends_on:
-      - mysql
-    image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
-    restart: always
-    ports:
-      - '8081:80'
-    environment:
-      PMA_HOST: mysql
-      MYSQL_ROOT_PASSWORD: root 
-    networks:
-      - rpsgame
   # Redis #
   redis:
     image: redis:6.2-alpine
     container_name: redis
-    restart: always
     ports:
       - '6379:6379'
-    command: redis-server --save 20
-    volumes: 
-      - redis:/data
+    command: redis-server --bind 0.0.0.0 --protected-mode no
+    networks:
+      - rpsgame
   # Kafka #
-  broker:
+  kafka-broker:
     image: apache/kafka:latest
-    container_name: broker
+    container_name: kafka-broker
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://localhost:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
@@ -62,10 +45,35 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 1
     ports:
-      - 19092:9092
+      - 9092:9092
+    networks:
+      - rpsgame
+  # rps logic api
   rps-game-logic-api:
-    image: prppoomw/rps-game-logic-api:latest
+    image: prppoomw/rps-game-logic-api:6
     container_name: rps-game-logic-api
     ports:
       - 8088:8088
+    depends_on:
+      - kafka-broker
+    networks:
+      - rpsgame
+  rps-score-api:
+    image: prppoomw/rps-score-api:9
+    container_name: rps-score-api
+    ports:
+      - 8089:8089
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - rpsgame
+  # rps ui #
+  rps-game-ui:
+    image: prppoomw/rps-game-ui:latest
+    container_name: rps-game-ui
+    ports:
+      - 3333:3333
+    networks:
+      - rpsgame
   
